@@ -1,0 +1,102 @@
+PASS  FFT tone frequency
+PASS  Hann window amplitude normalization
+PASS  Frequency band isolation
+PASS  Silent FFT
+PASS  16-bit stereo PCM
+PASS  24-bit signed PCM
+PASS  8-bit unsigned PCM
+PASS  32-bit signed PCM
+PASS  Float decode and NaN sanitization
+PASS  64-bit float decode
+PASS  Invalid and old preferences recover safely
+PASS  Nonfinite ranges and crossed thresholds are repaired
+PASS  Hex color parsing
+PASS  Percent and dBFS thresholds share one canonical scale
+PASS  Level color boundaries are exact
+PASS  Log frequency endpoints match labels
+PASS  Linear frequency spacing
+PASS  Frequency range follows device Nyquist limit
+PASS  Adaptive frequency units
+PASS  Hard cutoff applies before sensitivity gain
+PASS  Soft cutoff attenuates the edge
+PASS  Independent sensitivity
+PASS  Linked sensitivity
+PASS  Release timing is refresh-rate independent
+PASS  Margins remain eight pixels at different window sizes
+PASS  Fixed margins respect Windows display scaling
+PASS  Per-control reset preserves unrelated settings
+PASS  Section reset
+PASS  Preset application preserves window geometry
+PASS  Presets are independent snapshots
+PASS  Preset export/import round trip
+PASS  Version 1 settings retain values and gain new defaults
+PASS  Preset names cannot escape their folder
+PASS  Preset XML rejects external entities
+PASS  Green, yellow, and red segmented bars render
+PASS  Solid bars retain level color zones
+PASS  Background opacity is independent alpha
+PASS  Scope remains bright over translucent background
+PASS  Clear retains a clickable alpha-one surface
+PASS  Reverse gradient changes the actual render
+PASS  Gradient render: Vertical, Each bar
+PASS  Gradient render: Vertical, Bars view
+PASS  Gradient render: Vertical, Both views
+PASS  Gradient render: Horizontal, Each bar
+PASS  Gradient render: Horizontal, Bars view
+PASS  Gradient render: Horizontal, Both views
+PASS  Labels, grids, and changed frequency range render together
+PASS  Small window with large labels: Oscilloscope
+PASS  Small window with large labels: Bars
+PASS  Small window with large labels: Both
+PASS  Cutoff hides all below-threshold bars without phantom peaks
+PASS  Shared gradient has the expected endpoint palette
+PASS  Bulk ring copy preserves newest requested samples after wraparound
+PASS  Silence detection and sample revisions follow capture data
+PASS  Stale capture yields silence and a distinct sample revision
+PASS  Cached resources update when appearance changes
+PASS  Cached FFT updates on a new silent sample revision
+PASS  Settled silence stops the redraw loop
+PASS  New audio immediately wakes the redraw loop
+PASS  Resizes, settings changes, and device rates force a fresh frame
+INFO  Native array drawing enabled: True
+PASS  Native array drawing matches the public API fallback
+PASS  The final idle frame clears old bars and peaks
+PASS  Recovery shortcut parses correctly
+PASS  Shortcut formatting and Windows modifier mapping
+PASS  Default hotkey bindings are valid
+PASS  Focused commands resolve from bindings
+PASS  Custom focused shortcuts replace defaults and optional shortcuts can be cleared
+PASS  Duplicate shortcuts are rejected
+PASS  Global recovery shortcut requires Ctrl or Alt
+PASS  Global recovery shortcut cannot be removed
+PASS  Fixed Windows/navigation shortcuts stay reserved
+PASS  Invalid saved shortcuts recover to defaults
+PASS  Requested click-through activates with a recovery shortcut
+PASS  Opening settings suspends click-through
+PASS  Unavailable recovery shortcut keeps the overlay clickable
+PASS  Tray/checkbox opt-out keeps the overlay clickable
+PASS  Click-through supports opaque and translucent backgrounds
+PASS  Click-through adds both required window styles without changing topmost
+PASS  Restoring interaction clears click-through and optional layering
+PASS  Recovery shortcut registration succeeds
+PASS  Unchanged shortcut does not re-register
+PASS  Conflicting replacement preserves the working recovery shortcut
+PASS  Successful replacement releases the old shortcut
+PASS  Replacement is registered before old shortcut release
+PASS  Unrelated global hotkey messages are ignored
+PASS  Exit unregisters the recovery shortcut
+PASS  Cloning preferences does not share mutable hotkey bindings
+PASS  Appearance presets preserve interaction and shortcut preferences
+PASS  Interaction and hotkeys persist across settings reload
+PASS  Older settings gain safe interaction defaults
+PASS  Full application name is used for window titles
+PASS  Grouped slider captions stay within their row
+PASS  Window size caption stays visible
+PASS  Settings section layout: 0
+PASS  Settings section layout: 1
+PASS  Settings section layout: 2
+PASS  Settings section layout: 3
+PASS  Settings section layout: 4
+PASS  Settings section layout: 5
+PASS  Settings section layout: 6
+PASS  Color captions stay within their row

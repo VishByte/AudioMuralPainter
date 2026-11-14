@@ -1,0 +1,35 @@
+# Built executables and distribution archives belong in releases, not source history.
+*.exe
+*.dll
+*.pdb
+*.zip
+*.msi
+
+# Personal preferences and saved presets.
+/Amp.settings.xml
+/Amp.settings.xml.tmp
+/Presets/
+
+# Local build, editor, and test output.
+/bin/
+/obj/
+/work/
+/outputs/
+/TestResults/
+/.vs/
+*.user
+*.suo
+/Amp-test.txt
+/Amp-audio.txt
+/Amp-benchmark.tsv
+/v2-*.png
+/v2-preset-roundtrip.xml
+/v1-migration.xml
+/invalid-preset.xml
+
+# Local credentials and OS metadata.
+.env
+.env.*
+!.env.example
+Thumbs.db
+Desktop.ini
