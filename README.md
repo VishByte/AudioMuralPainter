@@ -1,4 +1,4 @@
-# AudioMuralPainter 2.2 (AMP)
+# AudioMuralPainter 2.2.1 (AMP)
 
 Portable Windows 11 playback visualizer. Open **AudioMuralPainter.exe**. The main window shows only the visuals; press **F1** for settings. The full product name is AudioMuralPainter, with **AMP** used in the tray and compact headings.
 
@@ -10,7 +10,9 @@ From the repository folder, run `./Source/Build.ps1` in PowerShell. It creates *
 
 Personal **Amp.settings.xml** preferences, saved **Presets**, compiled executables, and ZIP archives are excluded from Git. A fresh source checkout uses the built-in defaults. To run the automated checks without opening the visualizer, use `./AudioMuralPainter.exe --self-test work/checks.txt`.
 
-Version 2.2 adds optional mouse click-through, a global settings/recovery shortcut, a tray menu, and customizable keyboard shortcuts. It retains the optimized 2.1 audio/rendering pipeline. The earlier performance measurements are in **Performance.md**; those results are not new measurements of this release. An opaque background with click-through uses the layered renderer, so its cost can differ from the ordinary opaque mode.
+Version 2.2.1 adds privacy-safe preset exports, safer persistence and input validation, corrected scope axes, and window-recreation recovery. It also separates capture, analysis, persistence, and settings responsibilities, with typed editor bindings and explicit resource ownership. See [AUDIT.md](AUDIT.md) for the review and [CONTRIBUTING.md](CONTRIBUTING.md) for repeatable checks.
+
+Version 2.2 added optional mouse click-through, a global settings/recovery shortcut, a tray menu, and customizable keyboard shortcuts. It retains the optimized 2.1 audio/rendering pipeline. The earlier performance measurements are in **Performance.md**; those results are not new measurements of this release. An opaque background with click-through uses the layered renderer, so its cost can differ from the ordinary opaque mode.
 
 ## Controls and recovery
 
@@ -38,7 +40,7 @@ AMP enables click-through only after Windows successfully reserves the global re
 
 ## Customizing and resetting
 
-Select **Display → Customize hotkeys…**, or use the tray menu. Click a shortcut field and press the desired keys, then select **Apply**. The global shortcut requires Ctrl or Alt. Other shortcuts apply only while AMP or its settings have focus. Backspace clears an optional shortcut; every row has a clickable **(default)** reset. Duplicate bindings and reserved navigation combinations are rejected. Esc, Tab, Alt+F4, and Windows security shortcuts retain their usual roles.
+Select **Display → Customize hotkeys…**, or use the tray menu. Click a shortcut field and press the desired keys, then select **Apply**. The global shortcut requires Ctrl or Alt; F12 is reserved by Windows and cannot be used globally. Other shortcuts apply only while AMP or its settings have focus. Backspace clears an optional shortcut; every row has a clickable **(default)** reset. Duplicate bindings and reserved navigation combinations are rejected. Esc, Tab, Alt+F4, and Windows security shortcuts retain their usual roles.
 
 Global shortcut registration exists only while AMP is running. AMP uses the native Windows [RegisterHotKey API](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registerhotkey); it does not install a keyboard hook or record keystrokes. Shortcuts and overlays may be unavailable on secure desktops or in exclusive fullscreen applications. The tray remains an alternative recovery route on the normal desktop.
 
@@ -82,11 +84,11 @@ The scope has its own start, middle, and end colors for local gradients. Its sol
 
 Separate toggles control bar frequency labels, scope time labels, scope amplitude scale, and each view's grid. Customize text/grid color, label size, label opacity, maximum horizontal label count, and grid opacity. Label counts adapt to the available width.
 
-Scope time labels run from the negative displayed duration to 0 ms. The amplitude scale uses normalized sample amplitude from −1 to +1 after scope sensitivity gain. Digital dBFS values are not physical sound-pressure measurements.
+Scope time labels run from the negative effective displayed duration to 0 ms. Very high playback rates can shorten the available window; the labels reflect that limit. The amplitude scale uses normalized sample amplitude from −1 to +1 after scope sensitivity gain. Digital dBFS values are not physical sound-pressure measurements.
 
 ## Presets and persistence
 
-Built-in presets: Default, Minimal scope, Classic meters, Continuous gradient, and Glass. Save your own named setups beside the app in **Presets**, or import/export a preset XML file. Applying a preset preserves your window size, position, hotkeys, and click-through choice.
+Built-in presets: Default, Minimal scope, Classic meters, Continuous gradient, and Glass. Save your own named setups beside the app in **Presets**, or import/export a preset XML file. Applying a preset preserves your window size, position, hotkeys, and click-through choice. New saved/exported presets omit those private fields; local Amp.settings.xml still retains them.
 
 Preferences are saved beside AudioMuralPainter.exe as **Amp.settings.xml** when settings close or AMP exits; tray interaction and hotkey changes also save immediately. The legacy filename is retained for compatibility. Keep AMP in a writable folder. To migrate an older installation, copy its Amp.settings.xml and Presets folder beside the new executable. Older preferences remain readable and new controls receive safe defaults. Presets/settings never save audio.
 
@@ -96,12 +98,14 @@ AMP follows the default Windows playback device, combines channels into a mono a
 
 ## Source and checks
 
-All source is in **Source**. **Source\Build.ps1** builds **AudioMuralPainter.exe** with the existing Windows .NET Framework C# compiler and warnings treated as errors. There are no third-party packages.
+All source is in **Source**. **Source\Build.ps1** builds **AudioMuralPainter.exe** with the existing Windows .NET Framework C# compiler and warnings treated as errors. There are no third-party runtime packages. Development checks and an optional desktop test are documented in **CONTRIBUTING.md**.
 
-Desktop integration, hotkey validation/registration, the hotkey editor, and product metadata are separate modules. Audio and rendering retain their existing responsibilities. The internal Amp namespace, icon asset filenames, and settings filename remain short for compatibility.
+Capture, PCM decoding, FFT analysis, persistence, desktop integration, settings editors, and page definitions are separate modules. The internal Amp namespace, icon asset filenames, and settings filename remain short for compatibility.
 
 `AudioMuralPainter.exe --self-test <report-path>` runs the automated checks and saves diagnostic PNGs beside the report. `--probe-audio <report-path>` checks playback capture without opening a window. `--benchmark <report-path> <settings-path>` runs the synthetic rendering benchmark. `--input-test-target` opens a temporary click-counter window for manual overlay testing; it does not start audio capture or register shortcuts.
 
-Verification: **101 automated checks passed**, covering signal processing, settings migration, presets, rendering, transparency, gradients, thresholds, labels, optimized buffers/caches, shortcut parsing and validation, registration replacement/rollback, interaction policy, window-style flags, and resource cleanup. Fake registrations isolate the automated tests from your real global shortcuts; those tests do not establish that a particular shortcut is available on your PC. See **Checks.txt** and **Verification.md** for the desktop test status.
+Without a report path, diagnostic output goes into a command-specific directory under **work** in the current directory.
+
+Verification: **182 automated checks passed**, covering signal processing, settings migration, presets, rendering, transparency, gradients, thresholds, labels, optimized buffers/caches, shortcut parsing and validation, registration replacement/rollback, interaction policy, window-style flags, and resource cleanup. Fake registrations isolate the automated tests from your real global shortcuts; those tests do not establish that a particular shortcut is available on your PC. See **Checks.txt** and **Verification.md** for the desktop test status.
 
 The fast array drawing path uses the same Windows GDI+ operations with existing .NET Framework graphics handles, with the public drawing API as a fallback. No drivers, packages, services, or PATH entries are installed. Windows security settings were not changed.

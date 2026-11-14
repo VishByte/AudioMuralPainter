@@ -1,6 +1,20 @@
-# AMP 2.1 performance check
+# AMP performance checks
 
-Measured locally on the user's PC after the process-intensive game was closed. Both versions were run under the same lighter load in three alternating before/after trials. The comparison uses the original version 2 rendering source and the optimized version 2.1 source, compiled with the existing Windows .NET Framework compiler.
+## 2.2.1 audit regression comparison — 2026-11-14
+
+Three alternating 2.2.0/final-source trials used the built-in synthetic benchmark: 60 warm-up frames followed by 360 measured frames per view. The configuration was 801 × 471 pixels at scale 1, 50 bars, FFT 4096, 1024 waveform points, a 40 ms scope, glow 40, gradient styles, clear background, and all three label types enabled.
+
+| View | 2.2.0 wall ms/frame | 2.2.1 wall ms/frame | 2.2.0 CPU ms/frame | 2.2.1 CPU ms/frame |
+| --- | ---: | ---: | ---: | ---: |
+| Both | 2.386 | 2.433 | 2.387 | 2.431 |
+| Bars | 0.223 | 0.226 | 0.217 | 0.217 |
+| Oscilloscope | 3.464 | 3.453 | 3.472 | 3.429 |
+
+These are medians, not confidence intervals. The small differences do not demonstrate a material regression or an optimization gain. All measured trials had zero generation-0 collections. The benchmark excludes playback capture, window presentation, and desktop composition, so this comparison is not a new measurement of live click-through cost.
+
+## Historical 2.1 optimization comparison
+
+Measured on a local Windows PC. Both versions were run under comparable background load in three alternating before/after trials. The comparison uses the original version 2 rendering source and the optimized version 2.1 source, compiled with the existing Windows .NET Framework compiler.
 
 ## Results
 
