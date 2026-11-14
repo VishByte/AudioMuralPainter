@@ -7,6 +7,7 @@ namespace Amp
     // Owns desktop input and tray lifetime; rendering/audio do not depend on these details.
     internal sealed class DesktopIntegration : IDisposable
     {
+        const int HotkeyMessage = 0x0312;
         readonly Preferences prefs;
         readonly RecoveryHotkey recovery;
         readonly Action openSettings, customize, quit, changed, save;
@@ -108,7 +109,7 @@ namespace Amp
 
         public bool HandleMessage(int message, IntPtr id)
         {
-            if (message != 0x312 || !recovery.Owns(id.ToInt32()))
+            if (message != HotkeyMessage || !recovery.Owns(id.ToInt32()))
                 return false;
             openSettings();
             return true;

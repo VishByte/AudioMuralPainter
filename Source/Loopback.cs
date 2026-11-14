@@ -62,6 +62,8 @@ namespace Amp
 
         public void Snapshot(float[] target)
         {
+            if (target == null)
+                throw new ArgumentNullException("target");
             bool hasSignal;
             Snapshot(target, target.Length, out hasSignal);
         }
@@ -74,6 +76,10 @@ namespace Amp
 
         public long Snapshot(float[] target, int required, out bool hasSignal)
         {
+            if (target == null)
+                throw new ArgumentNullException("target");
+            if (target.Length == 0 || required < 1)
+                throw new ArgumentOutOfRangeException("required");
             required = Math.Max(1, Math.Min(target.Length, required));
             lock (sync)
             {
@@ -189,7 +195,7 @@ namespace Amp
                     }
                     else if (wave.Tag != 1 && wave.Tag != 3)
                         throw new NotSupportedException("Unsupported Windows audio mix format.");
-                    if (wave.Channels < 1 || wave.Align < wave.Channels * (wave.Bits / 8) || (floating ? wave.Bits != 32 && wave.Bits != 64 : wave.Bits != 8 && wave.Bits != 16 && wave.Bits != 24 && wave.Bits != 32))
+                    if (wave.Rate < 8000 || wave.Rate > 384000 || wave.Channels < 1 || wave.Align < wave.Channels * (wave.Bits / 8) || (floating ? wave.Bits != 32 && wave.Bits != 64 : wave.Bits != 8 && wave.Bits != 16 && wave.Bits != 24 && wave.Bits != 32))
                         throw new NotSupportedException("Unsupported Windows audio sample size.");
                     rate = (int)wave.Rate;
                     // Windows 11 signals newly available loopback buffers instead of polling every 5 ms.
@@ -228,12 +234,16 @@ namespace Amp
                         Check(capture.GetNextPacketSize(out packet));
                         while (packet > 0)
                         {
+                            if (stop.WaitOne(0))
+                                break;
                             IntPtr data;
                             uint n, flags;
                             ulong pos, clock;
                             Check(capture.GetBuffer(out data, out n, out flags, out pos, out clock));
                             try
                             {
+                                if ((flags & 1) != 0)
+                                    Clear(); // Do not join samples across a capture discontinuity.
                                 int length = checked((int)n * wave.Align);
                                 if (mono.Length < n)
                                     mono = new float[n];
@@ -244,7 +254,7 @@ namespace Amp
                                     if (bytes.Length < length)
                                         bytes = new byte[length];
                                     Marshal.Copy(data, bytes, 0, length);
-                                    Decode(bytes, mono, (int)n, wave.Channels, wave.Align, wave.Bits, floating);
+                                    PcmDecoder.Decode(bytes, mono, (int)n, wave.Channels, wave.Align, wave.Bits, floating);
                                 }
 
                                 Append(mono, (int)n);
@@ -307,34 +317,6 @@ namespace Amp
             }
         }
 
-        internal static void Decode(byte[] bytes, float[] mono, int n, int channels, int align, int bits, bool floating)
-        {
-            int size = bits / 8;
-            for (int frame = 0; frame < n; frame++)
-            {
-                double sum = 0;
-                for (int ch = 0; ch < channels; ch++)
-                {
-                    int p = frame * align + ch * size;
-                    double value;
-                    if (floating)
-                        value = bits == 64 ? BitConverter.ToDouble(bytes, p) : BitConverter.ToSingle(bytes, p);
-                    else if (bits == 8)
-                        value = (bytes[p] - 128) / 128.0;
-                    else if (bits == 16)
-                        value = BitConverter.ToInt16(bytes, p) / 32768.0;
-                    else if (bits == 24)
-                        value = ((bytes[p] | (bytes[p + 1] << 8) | (bytes[p + 2] << 16)) << 8 >> 8) / 8388608.0;
-                    else
-                        value = BitConverter.ToInt32(bytes, p) / 2147483648.0;
-                    if (!double.IsNaN(value) && !double.IsInfinity(value))
-                        sum += value;
-                }
-
-                mono[frame] = (float)Math.Max(-1, Math.Min(1, sum / channels));
-            }
-        }
-
         public void Dispose()
         {
             if (Interlocked.Exchange(ref disposed, 1) != 0)
@@ -343,173 +325,5 @@ namespace Amp
             if (thread == null || thread.Join(2500))
                 stop.Dispose();
         }
-    }
-
-    internal sealed class Spectrum
-    {
-        double[] re, im, window;
-        double windowSum;
-        public double[] Magnitudes { get; private set; }
-
-        public void Compute(float[] samples, int size)
-        {
-            if (re == null || re.Length != size)
-            {
-                re = new double[size];
-                im = new double[size];
-                window = new double[size];
-                Magnitudes = new double[size / 2 + 1];
-                windowSum = 0;
-                for (int i = 0; i < size; i++)
-                {
-                    window[i] = .5 * (1 - Math.Cos(2 * Math.PI * i / (size - 1)));
-                    windowSum += window[i];
-                }
-            }
-
-            for (int i = 0; i < size; i++)
-            {
-                re[i] = samples[samples.Length - size + i] * window[i];
-                im[i] = 0;
-            }
-
-            for (int i = 1, j = 0; i < size; i++)
-            {
-                int bit = size >> 1;
-                for (; (j & bit) != 0; bit >>= 1)
-                    j ^= bit;
-                j ^= bit;
-                if (i < j)
-                {
-                    double tmp = re[i];
-                    re[i] = re[j];
-                    re[j] = tmp;
-                }
-            }
-
-            for (int len = 2; len <= size; len <<= 1)
-            {
-                double ar = Math.Cos(-2 * Math.PI / len), ai = Math.Sin(-2 * Math.PI / len);
-                for (int i = 0; i < size; i += len)
-                {
-                    double wr = 1, wi = 0;
-                    for (int j = 0; j < len / 2; j++)
-                    {
-                        int a = i + j, b = a + len / 2;
-                        double tr = wr * re[b] - wi * im[b], ti = wr * im[b] + wi * re[b];
-                        re[b] = re[a] - tr;
-                        im[b] = im[a] - ti;
-                        re[a] += tr;
-                        im[a] += ti;
-                        double nr = wr * ar - wi * ai;
-                        wi = wr * ai + wi * ar;
-                        wr = nr;
-                    }
-                }
-            }
-
-            for (int i = 0; i < Magnitudes.Length; i++)
-                Magnitudes[i] = Math.Sqrt(re[i] * re[i] + im[i] * im[i]) * 2 / windowSum;
-        }
-
-        public double Band(double low, double high, int rate, int size)
-        {
-            double first = Math.Max(1, low * size / rate);
-            double last = Math.Min(Magnitudes.Length - 1, high * size / rate);
-            if (last < first)
-                return 0;
-            double peak = Interpolate((first + last) * .5);
-            for (int i = (int)Math.Ceiling(first); i <= (int)last; i++)
-                peak = Math.Max(peak, Magnitudes[i]);
-            return peak;
-        }
-
-        double Interpolate(double position)
-        {
-            int i = Math.Min(Magnitudes.Length - 2, (int)position);
-            double part = position - i;
-            return Magnitudes[i] * (1 - part) + Magnitudes[i + 1] * part;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 2)]
-    internal struct WaveFormat
-    {
-        public ushort Tag, Channels;
-        public uint Rate, BytesPerSecond;
-        public ushort Align, Bits, Extra;
-    }
-
-    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    internal class MMDeviceEnumerator
-    {
-    }
-
-    [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IMMDeviceEnumerator
-    {
-        [PreserveSig]
-        int EnumAudioEndpoints(int flow, uint state, out IntPtr collection);
-        [PreserveSig]
-        int GetDefaultAudioEndpoint(int flow, int role, out IMMDevice device);
-        [PreserveSig]
-        int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice device);
-        [PreserveSig]
-        int RegisterEndpointNotificationCallback(IntPtr callback);
-        [PreserveSig]
-        int UnregisterEndpointNotificationCallback(IntPtr callback);
-    }
-
-    [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IMMDevice
-    {
-        [PreserveSig]
-        int Activate(ref Guid iid, uint context, IntPtr parameters, [MarshalAs(UnmanagedType.IUnknown)] out object obj);
-        [PreserveSig]
-        int OpenPropertyStore(uint access, out IntPtr store);
-        [PreserveSig]
-        int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
-        [PreserveSig]
-        int GetState(out uint state);
-    }
-
-    [ComImport, Guid("1CB9AD4C-DBFA-4C32-B178-C2F568A703B2"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IAudioClient
-    {
-        [PreserveSig]
-        int Initialize(int mode, uint flags, long duration, long periodicity, IntPtr format, IntPtr session);
-        [PreserveSig]
-        int GetBufferSize(out uint frames);
-        [PreserveSig]
-        int GetStreamLatency(out long latency);
-        [PreserveSig]
-        int GetCurrentPadding(out uint frames);
-        [PreserveSig]
-        int IsFormatSupported(int mode, IntPtr format, out IntPtr closest);
-        [PreserveSig]
-        int GetMixFormat(out IntPtr format);
-        [PreserveSig]
-        int GetDevicePeriod(out long normal, out long minimum);
-        [PreserveSig]
-        int Start();
-        [PreserveSig]
-        int Stop();
-        [PreserveSig]
-        int Reset();
-        [PreserveSig]
-        int SetEventHandle(IntPtr handle);
-        [PreserveSig]
-        int GetService(ref Guid iid, [MarshalAs(UnmanagedType.IUnknown)] out object service);
-    }
-
-    [ComImport, Guid("C8ADBD64-E71E-48A0-A4DE-185C395CD317"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IAudioCaptureClient
-    {
-        [PreserveSig]
-        int GetBuffer(out IntPtr data, out uint frames, out uint flags, out ulong position, out ulong time);
-        [PreserveSig]
-        int ReleaseBuffer(uint frames);
-        [PreserveSig]
-        int GetNextPacketSize(out uint frames);
     }
 }

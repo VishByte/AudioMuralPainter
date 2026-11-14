@@ -31,6 +31,7 @@ namespace Amp
         Size resourceSize;
         float resourceScale;
         int resourceRate;
+        int resourceSamples;
         bool resourcesDirty = true;
         int count, segments;
         float stride, gap, barWidth, step;
@@ -143,14 +144,22 @@ namespace Amp
             g.DrawString(text, font, brush, x, y);
         }
 
-        void EnsureResources(Size size, Preferences p, int rate, float scale)
+        internal static int ScopeSampleCount(int available, int rate, int milliseconds)
         {
-            if (!resourcesDirty && resourceSize == size && resourceScale == scale && resourceRate == rate)
+            if (rate < 1 || milliseconds < 1 || available < rate / 100 + 4)
+                throw new ArgumentOutOfRangeException("available");
+            return (int)Math.Min(available - rate / 100 - 2, Math.Max(2L, (long)rate * milliseconds / 1000));
+        }
+
+        void EnsureResources(Size size, Preferences p, int rate, float scale, int available)
+        {
+            if (!resourcesDirty && resourceSize == size && resourceScale == scale && resourceRate == rate && resourceSamples == available)
                 return;
             DisposeResources();
             resourceSize = size;
             resourceScale = scale;
             resourceRate = rate;
+            resourceSamples = available;
             SceneLayout layout = SceneLayout.Make(size, p, scale);
             font = new Font("Segoe UI", p.LabelSize * scale, FontStyle.Regular, GraphicsUnit.Pixel);
             background = Color.FromArgb(Math.Max(1, (int)Math.Round(p.BackgroundOpacity * 2.55)), 0, 0, 0);
@@ -165,7 +174,6 @@ namespace Amp
                 g.CompositingMode = CompositingMode.SourceOver;
                 g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 using (var label = new SolidBrush(Alpha(Preferences.ColorOf(p.LabelColor), p.LabelOpacity * 255 / 100)))
-                using (var grid = new Pen(Alpha(Preferences.ColorOf(p.LabelColor), p.GridOpacity * 255 / 100), scale))
                 {
                     scopeArea = RectangleF.Empty;
                     barArea = RectangleF.Empty;
@@ -177,36 +185,8 @@ namespace Amp
                         int ticks = TickCount(scopeArea, p, font);
                         scopeTicks = ticks;
                         if (p.ScopeGrid)
-                        {
-                            for (int i = 0; i < 5; i++)
-                            {
-                                float y = scopeArea.Top + scopeArea.Height * i / 4;
-                                g.DrawLine(grid, scopeArea.Left, y, scopeArea.Right, y);
-                            }
-
-                            for (int i = 0; i < ticks; i++)
-                            {
-                                float x = scopeArea.Left + scopeArea.Width * i / (ticks - 1);
-                                g.DrawLine(grid, x, scopeArea.Top, x, scopeArea.Bottom);
-                            }
-                        }
-
-                        if (p.ScopeTimeLabels)
-                            for (int i = 0; i < ticks; i++)
-                            {
-                                double ms = -p.TimeMs * (1 - (double)i / (ticks - 1));
-                                AxisText(g, ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms", font, label, scopeArea.Left + scopeArea.Width * i / (ticks - 1), scopeArea.Bottom + 3 * scale, i == 0 ? -1 : i == ticks - 1 ? 1 : 0, bounds);
-                            }
-
-                        if (p.ScopeAmplitudeLabels)
-                            for (int i = 0; i < 5; i++)
-                            {
-                                double amplitude = 1 - i * .5;
-                                string text = amplitude.ToString("+0.#;-0.#;0", CultureInfo.InvariantCulture);
-                                float y = Math.Max(bounds.Top, Math.Min(scopeArea.Top + scopeArea.Height * i / 4 - font.GetHeight(g) / 2, scopeArea.Bottom - font.GetHeight(g)));
-                                g.DrawString(text, font, label, scopeArea.Right + 5 * scale, y);
-                            }
-
+                            DrawGrid(g, scopeArea, ticks, true);
+                        DrawScopeLabels(g, p, bounds, scale, label);
                         RectangleF gradient = p.GradientCoverage == "Both views" ? layout.Content : scopeArea;
                         using (var brush = ScopeBrush(gradient, p, 255))
                             scopeLine = new Pen(brush, (float)p.WaveThickness * scale)
@@ -230,20 +210,7 @@ namespace Amp
                         int ticks = TickCount(barArea, p, font);
                         barTicks = ticks;
                         if (p.BarsGrid)
-                        {
-                            for (int i = 0; i < 5; i++)
-                            {
-                                float y = barArea.Top + barArea.Height * i / 4;
-                                g.DrawLine(grid, barArea.Left, y, barArea.Right, y);
-                            }
-
-                            for (int i = 0; i < ticks; i++)
-                            {
-                                float x = barArea.Left + barArea.Width * i / (ticks - 1);
-                                g.DrawLine(grid, x, barArea.Top, x, barArea.Bottom);
-                            }
-                        }
-
+                            DrawGrid(g, barArea, ticks);
                         if (p.BarsLabels)
                             for (int i = 0; i < ticks; i++)
                                 AxisText(g, MeterMath.FrequencyLabel(MeterMath.FrequencyAt(p, (double)i / (ticks - 1), rate)), font, label, barArea.Left + barArea.Width * i / (ticks - 1), barArea.Bottom + 3 * scale, i == 0 ? -1 : i == ticks - 1 ? 1 : 0, bounds);
@@ -318,7 +285,7 @@ namespace Amp
 
         public void Draw(Graphics g, Size size, Preferences p, float[] samples, int rate, double dt, float scale)
         {
-            EnsureResources(size, p, rate, scale);
+            EnsureResources(size, p, rate, scale, samples.Length);
             g.CompositingMode = CompositingMode.SourceCopy;
             g.Clear(background);
             g.CompositingMode = CompositingMode.SourceOver;
@@ -327,7 +294,7 @@ namespace Amp
             else
             {
                 if (scopeGrid && scopeArea.Width > 0)
-                    DrawGrid(g, scopeArea, scopeTicks);
+                    DrawGrid(g, scopeArea, scopeTicks, true);
                 if (barsGrid && barArea.Width > 0)
                     DrawGrid(g, barArea, barTicks);
                 g.CompositingMode = CompositingMode.SourceCopy;
@@ -346,26 +313,29 @@ namespace Amp
         {
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             if (scopeGrid)
-                DrawGrid(g, scopeArea, scopeTicks);
+                DrawGrid(g, scopeArea, scopeTicks, true);
             var bounds = SceneLayout.Make(resourceSize, p, scale).Scope;
             using (var label = new SolidBrush(Alpha(Preferences.ColorOf(p.LabelColor), p.LabelOpacity * 255 / 100)))
-            {
-                if (p.ScopeTimeLabels)
-                    for (int i = 0; i < scopeTicks; i++)
-                    {
-                        double ms = -p.TimeMs * (1 - (double)i / (scopeTicks - 1));
-                        AxisText(g, ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms", font, label, scopeArea.Left + scopeArea.Width * i / (scopeTicks - 1), scopeArea.Bottom + 3 * scale, i == 0 ? -1 : i == scopeTicks - 1 ? 1 : 0, bounds);
-                    }
+                DrawScopeLabels(g, p, bounds, scale, label);
+        }
 
-                if (p.ScopeAmplitudeLabels)
-                    for (int i = 0; i < 5; i++)
-                    {
-                        double amplitude = 1 - i * .5;
-                        string text = amplitude.ToString("+0.#;-0.#;0", CultureInfo.InvariantCulture);
-                        float y = Math.Max(bounds.Top, Math.Min(scopeArea.Top + scopeArea.Height * i / 4 - font.GetHeight(g) / 2, scopeArea.Bottom - font.GetHeight(g)));
-                        g.DrawString(text, font, label, scopeArea.Right + 5 * scale, y);
-                    }
-            }
+        void DrawScopeLabels(Graphics g, Preferences p, RectangleF bounds, float scale, Brush label)
+        {
+            if (p.ScopeTimeLabels)
+                for (int i = 0; i < scopeTicks; i++)
+                {
+                    double ms = -ScopeSampleCount(resourceSamples, resourceRate, p.TimeMs) * 1000.0 / resourceRate * (1 - (double)i / (scopeTicks - 1));
+                    AxisText(g, ms.ToString("0.#", CultureInfo.InvariantCulture) + " ms", font, label, scopeArea.Left + scopeArea.Width * i / (scopeTicks - 1), scopeArea.Bottom + 3 * scale, i == 0 ? -1 : i == scopeTicks - 1 ? 1 : 0, bounds);
+                }
+
+            if (p.ScopeAmplitudeLabels)
+                for (int i = 0; i < 5; i++)
+                {
+                    double amplitude = 1 - i * .5;
+                    string text = amplitude.ToString("+0.#;-0.#;0", CultureInfo.InvariantCulture);
+                    float y = Math.Max(bounds.Top, Math.Min(ScopeAmplitudeY(scopeArea, amplitude) - font.GetHeight(g) / 2, scopeArea.Bottom - font.GetHeight(g)));
+                    g.DrawString(text, font, label, scopeArea.Right + 5 * scale, y);
+                }
         }
 
         void AddAxis(List<Bitmap> images, List<Point> locations, RectangleF bounds)
@@ -377,11 +347,16 @@ namespace Amp
             locations.Add(rect.Location);
         }
 
-        void DrawGrid(Graphics g, RectangleF area, int ticks)
+        static float ScopeAmplitudeY(RectangleF area, double amplitude)
+        {
+            return area.Top + area.Height * .5f - (float)amplitude * area.Height * .46f;
+        }
+
+        void DrawGrid(Graphics g, RectangleF area, int ticks, bool scope = false)
         {
             for (int i = 0; i < 5; i++)
             {
-                float y = area.Top + area.Height * i / 4;
+                float y = scope ? ScopeAmplitudeY(area, 1 - i * .5) : area.Top + area.Height * i / 4;
                 g.DrawLine(gridPen, area.Left, y, area.Right, y);
             }
 
@@ -394,7 +369,7 @@ namespace Amp
 
         void DrawScope(Graphics g, Preferences p, float[] samples, int rate)
         {
-            int span = Math.Min(samples.Length - rate / 100 - 2, Math.Max(16, rate * p.TimeMs / 1000));
+            int span = ScopeSampleCount(samples.Length, rate, p.TimeMs);
             int start = samples.Length - span;
             for (int i = start; i > Math.Max(1, samples.Length - span - rate / 100); i--)
                 if (samples[i - 1] <= 0 && samples[i] > 0)
@@ -412,7 +387,7 @@ namespace Amp
                 double index = start + (double)i * (span - 1) / (n - 1);
                 int a = (int)index, b = Math.Min(samples.Length - 1, a + 1);
                 double v = Math.Max(-1, Math.Min(1, (samples[a] * (1 - (index - a)) + samples[b] * (index - a)) * gain));
-                path[i] = new PointF(scopeArea.Left + i * scopeArea.Width / (n - 1), scopeArea.Top + scopeArea.Height * .5f - (float)v * scopeArea.Height * .46f);
+                path[i] = new PointF(scopeArea.Left + i * scopeArea.Width / (n - 1), ScopeAmplitudeY(scopeArea, v));
             }
 
             var state = g.Save();
@@ -638,7 +613,8 @@ namespace Amp
             if (perBarGradients != null)
             {
                 foreach (var brush in perBarGradients)
-                    brush.Dispose();
+                    if (brush != null)
+                        brush.Dispose();
                 perBarGradients = null;
             }
         }

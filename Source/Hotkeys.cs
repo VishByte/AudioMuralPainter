@@ -74,9 +74,9 @@ namespace Amp
                     return false;
                 }
 
-                if (field == "GlobalSettings" && (key & (Keys.Control | Keys.Alt)) == 0)
+                if (field == "GlobalSettings" && ((key & (Keys.Control | Keys.Alt)) == 0 || code == Keys.F12))
                 {
-                    error = "The global recovery shortcut must include Ctrl or Alt.";
+                    error = "The global recovery shortcut must include Ctrl or Alt and cannot use F12 (reserved by Windows).";
                     return false;
                 }
 
@@ -127,7 +127,7 @@ namespace Amp
         public static bool TryParse(string text, out Keys key)
         {
             key = Keys.None;
-            if (string.IsNullOrWhiteSpace(text))
+            if (string.IsNullOrWhiteSpace(text) || text.Length > 64)
                 return false;
             try
             {
@@ -139,6 +139,10 @@ namespace Amp
             }
 
             Keys code = key & Keys.KeyCode;
+            if ((key & ~(Keys.KeyCode | Keys.Control | Keys.Alt | Keys.Shift)) != 0)
+                return false;
+            if ((int)code < 8 || (int)code > 254 || code == Keys.Packet || code == Keys.ProcessKey)
+                return false;
             return Enum.IsDefined(typeof(Keys), code) && code != Keys.None && code != Keys.ControlKey && code != Keys.ShiftKey && code != Keys.Menu && code != Keys.LControlKey && code != Keys.RControlKey && code != Keys.LShiftKey && code != Keys.RShiftKey && code != Keys.LMenu && code != Keys.RMenu && code != Keys.LWin && code != Keys.RWin;
         }
 

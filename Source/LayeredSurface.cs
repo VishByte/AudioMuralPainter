@@ -9,6 +9,10 @@ namespace Amp
     // Reuses a top-down premultiplied DIB, rather than allocating GDI handles each frame.
     internal sealed class LayeredSurface : IDisposable
     {
+        const int ExtendedStyleIndex = -20;
+        const long LayeredStyle = 0x00080000;
+        const long TransparentStyle = 0x00000020;
+        const uint RefreshWindowFrame = 0x0020 | 0x0010 | 0x0004 | 0x0002 | 0x0001;
         IntPtr dc, bitmap, previous;
         Bitmap image;
         Graphics graphics;
@@ -21,32 +25,33 @@ namespace Amp
             }
         }
 
-        public static void SetEnabled(IntPtr window, bool enabled)
-        {
-            SetWindowMode(window, enabled, false);
-        }
-
         internal static long WindowStyle(long current, bool layered, bool clickThrough)
         {
-            long style = current & ~(0x80000L | 0x20L);
+            long style = current & ~(LayeredStyle | TransparentStyle);
             if (layered || clickThrough)
-                style |= 0x80000;
+                style |= LayeredStyle;
             if (clickThrough)
-                style |= 0x20;
+                style |= TransparentStyle;
             return style;
         }
 
         public static void SetWindowMode(IntPtr window, bool enabled, bool clickThrough)
         {
-            long style = IntPtr.Size == 8 ? GetWindowLongPtr64(window, -20).ToInt64() : GetWindowLong32(window, -20);
+            long style = IntPtr.Size == 8 ? GetWindowLongPtr64(window, ExtendedStyleIndex).ToInt64() : GetWindowLong32(window, ExtendedStyleIndex);
             long next = WindowStyle(style, enabled, clickThrough);
             if (next == style)
                 return;
             if (IntPtr.Size == 8)
-                SetWindowLongPtr64(window, -20, new IntPtr(next));
+                SetWindowLongPtr64(window, ExtendedStyleIndex, new IntPtr(next));
             else
-                SetWindowLong32(window, -20, (int)next);
-            SetWindowPos(window, IntPtr.Zero, 0, 0, 0, 0, 0x37);
+                SetWindowLong32(window, ExtendedStyleIndex, (int)next);
+            long applied = IntPtr.Size == 8 ? GetWindowLongPtr64(window, ExtendedStyleIndex).ToInt64() : GetWindowLong32(window, ExtendedStyleIndex);
+            const long interactionStyles = LayeredStyle | TransparentStyle;
+            if ((applied & interactionStyles) != (next & interactionStyles))
+                throw new Win32Exception("Windows could not apply the requested overlay interaction mode.");
+            // FRAMECHANGED, NOACTIVATE, NOZORDER, NOMOVE, NOSIZE.
+            if (!SetWindowPos(window, IntPtr.Zero, 0, 0, 0, 0, RefreshWindowFrame))
+                throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
         public void Ensure(Size requested)
@@ -74,6 +79,13 @@ namespace Amp
             }
 
             previous = SelectObject(dc, bitmap);
+            if (previous == IntPtr.Zero || previous == new IntPtr(-1))
+            {
+                previous = IntPtr.Zero;
+                Dispose();
+                throw new Win32Exception("Windows could not select the overlay surface.");
+            }
+
             image = new Bitmap(size.Width, size.Height, size.Width * 4, PixelFormat.Format32bppPArgb, bits);
             graphics = Graphics.FromImage(image);
         }
@@ -173,7 +185,7 @@ namespace Amp
         static extern IntPtr SetWindowLongPtr64(IntPtr window, int index, IntPtr value);
         [DllImport("user32.dll", EntryPoint = "SetWindowLongW")]
         static extern int SetWindowLong32(IntPtr window, int index, int value);
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int cx, int cy, uint flags);
         [DllImport("gdi32.dll")]
         static extern IntPtr CreateCompatibleDC(IntPtr dc);

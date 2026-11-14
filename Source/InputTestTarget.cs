@@ -7,12 +7,20 @@ namespace Amp
     // Ordinary temporary test window. Mouse/keyboard input is supplied only by the desktop test tool.
     internal sealed class InputTestTarget : Form
     {
+        readonly UiResources resources = new UiResources();
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing)
+                resources.Dispose();
+        }
+
         public InputTestTarget()
         {
             Text = "AMP input test — clicks: 0";
             ClientSize = new Size(720, 400);
             StartPosition = FormStartPosition.CenterScreen;
-            Font = new Font("Segoe UI", 14);
+            Font = resources.GetFont("Segoe UI", 14);
             var button = new Button
             {
                 Text = "Test click",

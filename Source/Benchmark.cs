@@ -32,7 +32,7 @@ namespace Amp
                 {
                     var p = Preferences.Read(settingsPath);
                     p.View = view;
-                    var renderer = new SceneRenderer();
+                    using (var renderer = new SceneRenderer())
                     using (var bitmap = new Bitmap(p.Width, p.Height, PixelFormat.Format32bppPArgb))
                     using (var g = Graphics.FromImage(bitmap))
                     {
@@ -58,10 +58,6 @@ namespace Amp
 
                         bitmap.Save(Path.Combine(folder, Path.GetFileNameWithoutExtension(report) + "-" + view + ".png"));
                     }
-
-                    var disposable = (object)renderer as IDisposable;
-                    if (disposable != null)
-                        disposable.Dispose();
                 }
 
                 File.WriteAllText(report, text.ToString());

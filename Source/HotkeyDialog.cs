@@ -7,6 +7,7 @@ namespace Amp
 {
     internal sealed class HotkeyDialog : Form
     {
+        readonly UiResources resources = new UiResources();
         readonly Visualizer owner;
         readonly Dictionary<string, ShortcutBox> inputs = new Dictionary<string, ShortcutBox>();
         readonly Label error;
@@ -17,7 +18,7 @@ namespace Amp
             Icon = owner.Icon;
             BackColor = Color.FromArgb(14, 19, 16);
             ForeColor = Color.FromArgb(232, 239, 235);
-            Font = new Font("Segoe UI", 10);
+            Font = resources.GetFont("Segoe UI", 10);
             AutoScaleDimensions = new SizeF(96, 96);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(700, 450);
@@ -55,7 +56,7 @@ namespace Amp
                     Text = HotkeyBindings.Labels[i],
                     Dock = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleLeft,
-                    Font = new Font("Segoe UI", 9)
+                    Font = resources.GetFont("Segoe UI", 9)
                 };
                 var box = new ShortcutBox
                 {
@@ -71,7 +72,7 @@ namespace Amp
                     Dock = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleRight,
                     LinkColor = Color.FromArgb(147, 164, 155),
-                    Font = new Font("Segoe UI", 8)
+                    Font = resources.GetFont("Segoe UI", 8)
                 };
                 reset.LinkClicked += delegate
                 {
@@ -86,7 +87,7 @@ namespace Amp
             {
                 Text = "Esc closes dialogs or leaves fullscreen. Alt+F4 closes the active window. These shortcuts stay fixed. Backspace clears an optional shortcut.",
                 Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 8.5f),
+                Font = resources.GetFont("Segoe UI", 8.5f),
                 ForeColor = Color.FromArgb(147, 164, 155)
             };
             content.Controls.Add(note, 0, 6);
@@ -96,7 +97,7 @@ namespace Amp
             {
                 Dock = DockStyle.Fill,
                 ForeColor = Color.FromArgb(255, 125, 125),
-                Font = new Font("Segoe UI", 8.5f)
+                Font = resources.GetFont("Segoe UI", 8.5f)
             };
             content.Controls.Add(error, 0, 7);
             content.SetColumnSpan(error, 3);
@@ -129,6 +130,13 @@ namespace Amp
             content.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             CancelButton = cancel;
             Controls.Add(content);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing)
+                resources.Dispose();
         }
 
         void Apply()

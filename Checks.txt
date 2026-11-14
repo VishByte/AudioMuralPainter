@@ -89,14 +89,95 @@ PASS  Cloning preferences does not share mutable hotkey bindings
 PASS  Appearance presets preserve interaction and shortcut preferences
 PASS  Interaction and hotkeys persist across settings reload
 PASS  Older settings gain safe interaction defaults
+PASS  Numeric editor binding converts decimal input to the model field type
+PASS  Typed editor reset restores its model default
+PASS  Color editor binding updates its selected field
+PASS  Editor bindings reject indirect field access
+PASS  Section reset definitions have unique valid model fields
+PASS  Every visual preference belongs to a reset section
+PASS  Adversarial XML rejected: 0
+PASS  Adversarial XML rejected: 1
+PASS  Adversarial XML rejected: 2
+PASS  Adversarial XML rejected: 3
+PASS  Adversarial XML rejected: 4
+PASS  Adversarial XML rejected: 5
+PASS  Adversarial XML rejected: 6
+PASS  Adversarial XML rejected: 7
+PASS  Adversarial XML rejected: 8
+PASS  Adversarial XML rejected: 9
+PASS  Nonfinite XML values and null hotkeys normalize safely
+PASS  Unsafe preset filename rejected: 0
+PASS  Unsafe preset filename rejected: 1
+PASS  Unsafe preset filename rejected: 2
+PASS  Unsafe preset filename rejected: 3
+PASS  Unsafe preset filename rejected: 4
+PASS  Unsafe preset filename rejected: 5
+PASS  Unsafe preset filename rejected: 6
+PASS  Unsafe preset filename rejected: 7
+PASS  Unsafe preset filename rejected: 8
+PASS  Unsafe preset filename rejected: 9
+PASS  Unsafe preset filename rejected: 10
+PASS  Unsafe preset filename rejected: 11
+PASS  Unsafe preset filename rejected: 12
+PASS  Unsafe preset filename rejected: 13
+PASS  Unsafe preset filename rejected: 14
+PASS  Unsafe preset filename rejected: 15
+PASS  Unsafe preset filename rejected: 16
+PASS  Unsafe preset filename rejected: 17
+PASS  Unsafe preset filename rejected: 18
+PASS  Unsafe preset filename rejected: 19
+PASS  Unsafe preset filename rejected: 20
+PASS  Unsafe preset filename rejected: 21
+PASS  Unsafe preset filename rejected: 22
+PASS  Unsafe preset filename rejected: 23
+PASS  Valid named preset stays in its library
+PASS  Shared preset excludes private field: Left
+PASS  Shared preset excludes private field: Top
+PASS  Shared preset excludes private field: Width
+PASS  Shared preset excludes private field: Height
+PASS  Shared preset excludes private field: Hotkeys
+PASS  Shared preset excludes private field: ClickThrough
+PASS  Appearance-only preset round trip uses safe local defaults
+PASS  Export leaves the user's preferences unchanged
+PASS  Atomic save does not overwrite a predictable neighboring file
+PASS  Local preferences still retain geometry
+PASS  A locked destination rejects replacement without deleting it
+PASS  Failed save preserves existing data and cleans its temporary file
+PASS  Oversized hotkey input rejected before conversion
+PASS  Unknown hotkey modifier bits rejected
+PASS  Recovery shortcuts cannot use mouse or synthetic-only key codes
+PASS  Windows-reserved global F12 is rejected
+PASS  Typing a preset name does not invoke unmodified app shortcuts
+PASS  Function and modifier shortcuts remain available in editors
+PASS  Native rectangle count cannot exceed the pinned array
+PASS  Negative native rectangle counts rejected
+PASS  Native polyline requires at least two points
+PASS  Empty audio destination rejected safely
+PASS  Truncated PCM buffer rejected before decoding
+PASS  Zero audio channels rejected
+PASS  Non-power-of-two FFT rejected without entering transform loops
+PASS  Oversized FFT rejected before sample indexing
+PASS  Degenerate two-sample Hann window rejected
+PASS  DC FFT amplitude is not doubled
+PASS  Nyquist FFT amplitude is not doubled
+PASS  128 seeded boundary configurations validate and render without crashing
+PASS  A one-millisecond scope window stays accurate at 8 kHz
+PASS  High-rate scope timing is limited to available samples for both plot and labels
+PASS  Scope amplitude grid aligns with rendered sample level -1
+PASS  Scope amplitude grid aligns with rendered sample level -0.5
+PASS  Scope amplitude grid aligns with rendered sample level 0.5
+PASS  Scope amplitude grid aligns with rendered sample level 1
+PASS  Native dependencies resolve from Windows System32
+PASS  Losing mouse capture ends a threshold drag without requiring MouseUp
 PASS  Full application name is used for window titles
 PASS  Grouped slider captions stay within their row
 PASS  Window size caption stays visible
-PASS  Settings section layout: 0
-PASS  Settings section layout: 1
-PASS  Settings section layout: 2
-PASS  Settings section layout: 3
-PASS  Settings section layout: 4
-PASS  Settings section layout: 5
-PASS  Settings section layout: 6
+PASS  Settings section builds its expected controls: 0
+PASS  Settings section builds its expected controls: 1
+PASS  Settings section builds its expected controls: 2
+PASS  Settings section builds its expected controls: 3
+PASS  Settings section builds its expected controls: 4
+PASS  Settings section builds its expected controls: 5
+PASS  Settings section builds its expected controls: 6
 PASS  Color captions stay within their row
+PASS  Settings snapshot contains rendered controls rather than an empty form

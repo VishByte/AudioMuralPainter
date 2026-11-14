@@ -8,6 +8,7 @@
 # Personal preferences and saved presets.
 /Amp.settings.xml
 /Amp.settings.xml.tmp
+/.amp-*.tmp
 /Presets/
 
 # Local build, editor, and test output.

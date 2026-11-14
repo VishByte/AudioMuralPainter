@@ -31,6 +31,10 @@ namespace Amp
 
         public static void Lines(Graphics graphics, Pen pen, PointF[] points)
         {
+            if (points == null)
+                throw new ArgumentNullException("points");
+            if (points.Length < 2)
+                throw new ArgumentException("A line needs at least two points.", "points");
             if (Enabled)
             {
                 try
@@ -52,6 +56,10 @@ namespace Amp
 
         public static void Rectangles(Graphics graphics, Brush brush, RectangleF[] rectangles, int count)
         {
+            if (rectangles == null)
+                throw new ArgumentNullException("rectangles");
+            if (count < 0 || count > rectangles.Length)
+                throw new ArgumentOutOfRangeException("count");
             if (count == 0)
                 return;
             if (Enabled)

@@ -2,11 +2,15 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
-using System.Xml;
-using System.Xml.Serialization;
 
 namespace Amp
 {
+    // Local interaction and geometry never travel with a shared appearance preset.
+    [AttributeUsage(AttributeTargets.Field)]
+    internal sealed class LocalPreferenceAttribute : Attribute
+    {
+    }
+
     public sealed class Preferences
     {
         public string View = "Both";
@@ -15,9 +19,12 @@ namespace Amp
         public int Smoothing = 55; // Retained so version 1 files remain readable.
         public int AttackMs = 12, ReleaseMs = 410, PeakHoldMs = 320, PeakFallMs = 2800;
         public int Bars = 48, FftSize = 4096, WavePoints = 1024, TimeMs = 40, Fps = 60;
+        [LocalPreference]
         public int Width = 1000, Height = 600, Left = -32000, Top = -32000;
         public bool Peaks = true, OnTop = false;
+        [LocalPreference]
         public bool ClickThrough = false;
+        [LocalPreference]
         public HotkeyBindings Hotkeys = new HotkeyBindings();
         public int BackgroundOpacity = 100, Padding = 8, ViewGap = 12, ScopeShare = 40;
         public double BarGap = 3, SegmentHeight = 6, SegmentGap = 2, WaveThickness = 1.4;
@@ -255,7 +262,9 @@ namespace Amp
             var defaults = new Preferences();
             foreach (string name in fields)
             {
-                FieldInfo f = typeof(Preferences).GetField(name);
+                FieldInfo f = typeof(Preferences).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+                if (f == null)
+                    throw new ArgumentException("Unknown preference field: " + name, "fields");
                 f.SetValue(this, f.GetValue(defaults));
             }
 
@@ -273,9 +282,9 @@ namespace Amp
         {
             foreach (var field in typeof(Preferences).GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
-                if (preserveWindow && (field.Name == "Width" || field.Name == "Height" || field.Name == "Left" || field.Name == "Top" || field.Name == "ClickThrough" || field.Name == "Hotkeys"))
+                if (preserveWindow && field.IsDefined(typeof(LocalPreferenceAttribute), false))
                     continue;
-                field.SetValue(this, field.Name == "Hotkeys" ? (source.Hotkeys ?? new HotkeyBindings()).Clone() : field.GetValue(source));
+                field.SetValue(this, field.FieldType == typeof(HotkeyBindings) ? (source.Hotkeys ?? new HotkeyBindings()).Clone() : field.GetValue(source));
             }
 
             Validate();
@@ -291,20 +300,7 @@ namespace Amp
 
         public static Preferences Read(string path)
         {
-            if (new FileInfo(path).Length > 1048576)
-                throw new InvalidDataException("This preset is too large.");
-            var options = new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                MaxCharactersInDocument = 1048576
-            };
-            using (var reader = XmlReader.Create(path, options))
-            {
-                var p = (Preferences)new XmlSerializer(typeof(Preferences)).Deserialize(reader);
-                p.Validate();
-                return p;
-            }
+            return PreferencesStore.Read(path);
         }
 
         public static Preferences Load()
@@ -321,22 +317,12 @@ namespace Amp
 
         public void Write(string path)
         {
-            Validate();
-            string temp = path + ".tmp";
-            try
-            {
-                using (var stream = File.Create(temp))
-                    new XmlSerializer(typeof(Preferences)).Serialize(stream, this);
-                if (File.Exists(path))
-                    File.Replace(temp, path, null);
-                else
-                    File.Move(temp, path);
-            }
-            finally
-            {
-                if (File.Exists(temp))
-                    File.Delete(temp);
-            }
+            PreferencesStore.Write(this, path, false);
+        }
+
+        public void WritePreset(string path)
+        {
+            PreferencesStore.Write(this, path, true);
         }
 
         public string Save()
@@ -350,73 +336,6 @@ namespace Amp
             {
                 return "Could not save preferences: " + ex.Message;
             }
-        }
-    }
-
-    internal static class Presets
-    {
-        public static string Folder
-        {
-            get
-            {
-                return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Presets");
-            }
-        }
-
-        public static string PathFor(string name)
-        {
-            name = (name ?? "").Trim();
-            if (name.Length == 0 || name.Length > 48 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name == "." || name == ".." || name.EndsWith("."))
-                throw new ArgumentException("Choose a name of 1–48 characters without file path characters.");
-            return Path.Combine(Folder, name + ".xml");
-        }
-
-        public static string[] Names()
-        {
-            if (!Directory.Exists(Folder))
-                return new string[0];
-            return Array.ConvertAll(Directory.GetFiles(Folder, "*.xml"), Path.GetFileNameWithoutExtension);
-        }
-
-        public static void Save(string name, Preferences p)
-        {
-            string path = PathFor(name);
-            Directory.CreateDirectory(Folder);
-            p.Write(path);
-        }
-
-        public static Preferences BuiltIn(string name)
-        {
-            var p = new Preferences();
-            if (name == "Minimal scope")
-            {
-                p.View = "Oscilloscope";
-                p.WaveGlow = 20;
-            }
-
-            if (name == "Classic meters")
-            {
-                p.View = "Bars";
-                p.Bars = 32;
-                p.BarsLabels = true;
-            }
-
-            if (name == "Continuous gradient")
-            {
-                p.BarStyle = "Gradient";
-                p.ScopeStyle = "Gradient";
-                p.GradientCoverage = "Both views";
-                p.GradientDirection = "Horizontal";
-            }
-
-            if (name == "Glass")
-            {
-                p.BackgroundOpacity = 25;
-                p.BarStyle = "Gradient";
-                p.ScopeStyle = "Gradient";
-            }
-
-            return p;
         }
     }
 }
